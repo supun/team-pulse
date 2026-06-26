@@ -1,5 +1,0 @@
-./http.go
-./service.go
-./stripe.go
-./types.go
-./http_test.go
