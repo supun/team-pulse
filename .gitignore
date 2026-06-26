@@ -1,0 +1,16 @@
+.DS_Store
+
+# Environment files
+.env
+.env.local
+
+# Go build and test artifacts
+bin/
+coverage.out
+*.coverprofile
+
+# Local caches
+work/.gocache/
+
+# Generated output
+outputs/
