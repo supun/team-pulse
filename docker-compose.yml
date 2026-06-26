@@ -1,0 +1,68 @@
+services:
+  activity-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.activity-service
+    container_name: teampulse-activity-service
+    environment:
+      PORT: "8081"
+      ACTIVITY_DATA_FILE: /app/data/activities.json
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data/activity-service:/app/data
+    networks:
+      - teampulse-net
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.payment-service
+    container_name: teampulse-payment-service
+    env_file:
+      - .env.docker
+    environment:
+      PORT: "8082"
+      PAYMENT_DATA_FILE: /app/data/subscriptions.json
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./data/payment-service:/app/data
+    networks:
+      - teampulse-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.api-gateway
+    container_name: teampulse-api-gateway
+    depends_on:
+      - activity-service
+      - payment-service
+    environment:
+      PORT: "8080"
+      ACTIVITY_SERVICE_URL: http://activity-service:8081
+      PAYMENT_SERVICE_URL: http://payment-service:8082
+    ports:
+      - "8080:8080"
+    networks:
+      - teampulse-net
+
+  web-app:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.web-app
+    container_name: teampulse-web-app
+    depends_on:
+      - api-gateway
+    environment:
+      PORT: "3000"
+      API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    networks:
+      - teampulse-net
+
+networks:
+  teampulse-net:
+    driver: bridge

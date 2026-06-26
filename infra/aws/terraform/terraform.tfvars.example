@@ -1,0 +1,13 @@
+aws_region                      = "eu-west-1"
+project_name                    = "team-pulse"
+environment                     = "dev"
+
+container_image_web_app         = "123456789012.dkr.ecr.eu-west-1.amazonaws.com/team-pulse-web-app:latest"
+container_image_api_gateway     = "123456789012.dkr.ecr.eu-west-1.amazonaws.com/team-pulse-api-gateway:latest"
+container_image_activity_service = "123456789012.dkr.ecr.eu-west-1.amazonaws.com/team-pulse-activity-service:latest"
+container_image_payment_service = "123456789012.dkr.ecr.eu-west-1.amazonaws.com/team-pulse-payment-service:latest"
+
+stripe_secret_key_secret_arn    = "arn:aws:secretsmanager:eu-west-1:123456789012:secret:team-pulse/stripe-secret-key"
+stripe_price_starter            = "price_starter_xxx"
+stripe_price_club               = "price_club_xxx"
+stripe_price_pro                = "price_pro_xxx"
