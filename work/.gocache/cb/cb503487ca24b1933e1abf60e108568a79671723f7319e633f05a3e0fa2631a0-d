@@ -1,0 +1,4 @@
+=== RUN   TestCreateListAndRSVPFlow
+--- PASS: TestCreateListAndRSVPFlow (0.00s)
+PASS
+ok  	teampulse/internal/httpapi	0.629s

@@ -1,0 +1,15 @@
+{
+  "subscriptions": [
+    {
+      "teamId": "team-demo",
+      "teamName": "TeamPulse FC",
+      "plan": "club",
+      "status": "active",
+      "priceMonthlyNOK": 249,
+      "renewalDate": "2026-07-19T20:56:11.687071712Z",
+      "lastPaymentStatus": "paid",
+      "lastPaymentAt": "2026-06-19T20:56:11.687071712Z",
+      "stripeCustomerId": "cus_team-demo"
+    }
+  ]
+}

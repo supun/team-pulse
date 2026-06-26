@@ -1,0 +1,30 @@
+{
+  "nextId": 2,
+  "activities": [
+    {
+      "id": "act-001",
+      "title": "Wednesday Recovery Session",
+      "kind": "training",
+      "startsAt": "2026-06-27T20:56:11.701798045Z",
+      "location": "North Arena",
+      "maxParticipants": 18,
+      "notes": "Low-intensity mobility and ball retention work.",
+      "rsvps": {
+        "Alex": "going"
+      }
+    },
+    {
+      "id": "act-002",
+      "title": "Away Match vs. Fjordvik",
+      "kind": "match",
+      "startsAt": "2026-06-28T20:56:11.701798045Z",
+      "location": "Fjordvik Stadium",
+      "maxParticipants": 16,
+      "notes": "Bring white kit and meet 45 minutes before kickoff.",
+      "rsvps": {
+        "Alex": "going",
+        "Mia": "going"
+      }
+    }
+  ]
+}
