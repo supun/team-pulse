@@ -1,0 +1,8 @@
+.git
+.gitignore
+README.md
+work
+outputs
+infra/aws/terraform/.terraform
+infra/aws/terraform/*.tfstate
+infra/aws/terraform/*.tfstate.*
