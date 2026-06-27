@@ -49,3 +49,33 @@ terraform apply
 ```
 
 The main output is the public ALB DNS name.
+
+## GitHub Actions deployment
+
+The repository includes a GitHub Actions workflow at `.github/workflows/deploy.yml` that:
+
+- runs `go test ./...`
+- builds and pushes all four service images to Amazon ECR
+- initializes Terraform with an S3 backend
+- applies the ECS/Fargate infrastructure and service updates
+
+### Required GitHub repository secrets
+
+- `AWS_ROLE_TO_ASSUME`: IAM role assumed by GitHub Actions through OIDC
+- `TF_STATE_BUCKET`: S3 bucket that stores Terraform state
+- `TF_LOCK_TABLE`: DynamoDB table used for Terraform state locking
+- `STRIPE_SECRET_KEY_SECRET_ARN`: Secrets Manager ARN for the Stripe secret key
+- `STRIPE_PRICE_STARTER`
+- `STRIPE_PRICE_CLUB`
+- `STRIPE_PRICE_PRO`
+
+### Optional GitHub repository variables
+
+- `AWS_REGION`: defaults to `eu-west-1`
+- `PROJECT_NAME`: defaults to `team-pulse`
+- `DEPLOY_ENVIRONMENT`: defaults to `dev`
+
+### Notes
+
+- The workflow creates the expected ECR repositories if they do not exist yet.
+- Terraform state must be stored remotely for CI-driven deployments to remain consistent across runners.

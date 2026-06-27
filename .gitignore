@@ -14,3 +14,11 @@ work/.gocache/
 
 # Generated output
 outputs/
+
+# Terraform local state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+backend.hcl

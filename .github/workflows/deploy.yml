@@ -1,0 +1,145 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME || 'team-pulse' }}
+  DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || 'dev' }}
+  TF_DIR: infra/aws/terraform
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Resolve AWS account ID
+        id: aws-account
+        run: |
+          echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure ECR repositories exist
+        env:
+          ACCOUNT_ID: ${{ steps.aws-account.outputs.account_id }}
+        run: |
+          set -eu
+          for repo in \
+            "${PROJECT_NAME}-web-app" \
+            "${PROJECT_NAME}-api-gateway" \
+            "${PROJECT_NAME}-activity-service" \
+            "${PROJECT_NAME}-payment-service"
+          do
+            aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1 || \
+              aws ecr create-repository --repository-name "$repo" >/dev/null
+          done
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        id: images
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -eu
+
+          docker build -f build/Dockerfile.web-app -t "$REGISTRY/${PROJECT_NAME}-web-app:$IMAGE_TAG" .
+          docker push "$REGISTRY/${PROJECT_NAME}-web-app:$IMAGE_TAG"
+
+          docker build -f build/Dockerfile.api-gateway -t "$REGISTRY/${PROJECT_NAME}-api-gateway:$IMAGE_TAG" .
+          docker push "$REGISTRY/${PROJECT_NAME}-api-gateway:$IMAGE_TAG"
+
+          docker build -f build/Dockerfile.activity-service -t "$REGISTRY/${PROJECT_NAME}-activity-service:$IMAGE_TAG" .
+          docker push "$REGISTRY/${PROJECT_NAME}-activity-service:$IMAGE_TAG"
+
+          docker build -f build/Dockerfile.payment-service -t "$REGISTRY/${PROJECT_NAME}-payment-service:$IMAGE_TAG" .
+          docker push "$REGISTRY/${PROJECT_NAME}-payment-service:$IMAGE_TAG"
+
+          {
+            echo "web_app=$REGISTRY/${PROJECT_NAME}-web-app:$IMAGE_TAG"
+            echo "api_gateway=$REGISTRY/${PROJECT_NAME}-api-gateway:$IMAGE_TAG"
+            echo "activity_service=$REGISTRY/${PROJECT_NAME}-activity-service:$IMAGE_TAG"
+            echo "payment_service=$REGISTRY/${PROJECT_NAME}-payment-service:$IMAGE_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write Terraform backend config
+        run: |
+          cat <<EOF > "$TF_DIR/backend.hcl"
+          bucket         = "${{ secrets.TF_STATE_BUCKET }}"
+          key            = "${PROJECT_NAME}/${DEPLOY_ENVIRONMENT}/terraform.tfstate"
+          region         = "${AWS_REGION}"
+          encrypt        = true
+          dynamodb_table = "${{ secrets.TF_LOCK_TABLE }}"
+          EOF
+
+      - name: Write Terraform variables
+        run: |
+          cat <<EOF > "$TF_DIR/terraform.auto.tfvars"
+          aws_region                       = "${AWS_REGION}"
+          project_name                     = "${PROJECT_NAME}"
+          environment                      = "${DEPLOY_ENVIRONMENT}"
+          container_image_web_app          = "${{ steps.images.outputs.web_app }}"
+          container_image_api_gateway      = "${{ steps.images.outputs.api_gateway }}"
+          container_image_activity_service = "${{ steps.images.outputs.activity_service }}"
+          container_image_payment_service  = "${{ steps.images.outputs.payment_service }}"
+          stripe_secret_key_secret_arn     = "${{ secrets.STRIPE_SECRET_KEY_SECRET_ARN }}"
+          stripe_price_starter             = "${{ secrets.STRIPE_PRICE_STARTER }}"
+          stripe_price_club                = "${{ secrets.STRIPE_PRICE_CLUB }}"
+          stripe_price_pro                 = "${{ secrets.STRIPE_PRICE_PRO }}"
+          EOF
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -auto-approve -input=false
+
+      - name: Capture outputs
+        id: tf-output
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          echo "alb_dns=$(terraform output -raw alb_dns_name)" >> "$GITHUB_OUTPUT"
+          echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Deployment complete"
+            echo ""
+            echo "- Environment: ${DEPLOY_ENVIRONMENT}"
+            echo "- Region: ${AWS_REGION}"
+            echo "- ECS cluster: ${{ steps.tf-output.outputs.cluster }}"
+            echo "- ALB DNS: ${{ steps.tf-output.outputs.alb_dns }}"
+          } >> "$GITHUB_STEP_SUMMARY"
