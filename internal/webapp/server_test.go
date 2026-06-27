@@ -21,3 +21,18 @@ func TestConfigEndpoint(t *testing.T) {
 		t.Fatalf("unexpected config body %s", res.Body.String())
 	}
 }
+
+func TestOpenAPISpecIsServed(t *testing.T) {
+	server := NewServer("../../web", "http://localhost:8080")
+
+	req := httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil)
+	res := httptest.NewRecorder()
+	server.Routes().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.Code)
+	}
+	if !strings.Contains(res.Body.String(), "openapi: 3.1.0") {
+		t.Fatalf("unexpected spec body %s", res.Body.String())
+	}
+}

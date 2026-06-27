@@ -1,0 +1,928 @@
+openapi: 3.1.0
+info:
+  title: Team Pulse API
+  version: 1.1.0
+  summary: Versioned API contract for Team Pulse scheduling and billing flows
+  description: >
+    OpenAPI definition for the Team Pulse gateway. The primary supported surface
+    is `/api/v1`. Recurring scheduling is modeled as event series plus
+    materialized event occurrences.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local API gateway
+tags:
+  - name: Event Series
+  - name: Events
+  - name: Invitations
+  - name: Billing
+  - name: Health
+paths:
+  /event-series:
+    get:
+      tags: [Event Series]
+      operationId: listEventSeries
+      summary: List recurring and standalone event series
+      responses:
+        '200':
+          description: Event series list
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSeriesListResponse'
+    post:
+      tags: [Event Series]
+      operationId: createEventSeries
+      summary: Create an event series
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSeriesPayload'
+      responses:
+        '201':
+          description: Event series created
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSeriesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /event-series/{seriesId}:
+    get:
+      tags: [Event Series]
+      operationId: getEventSeries
+      summary: Fetch a series definition and materialized occurrences
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+      responses:
+        '200':
+          description: Event series
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSeriesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Event Series]
+      operationId: updateEntireSeries
+      summary: Update the entire series and regenerate non-exception occurrences
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSeriesPatchRequest'
+      responses:
+        '200':
+          description: Series updated
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSeriesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /event-series/{seriesId}/split:
+    post:
+      tags: [Event Series]
+      operationId: splitSeries
+      summary: Split a series from an occurrence forward
+      description: >
+        Creates a new series starting from the supplied occurrence. Use this for
+        "this and future" edits without rewriting historical occurrences.
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSeriesSplitRequest'
+      responses:
+        '201':
+          description: New split series created
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSeriesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /events:
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: List materialized event occurrences
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/IncludeDashboard'
+        - $ref: '#/components/parameters/IfNoneMatch'
+        - $ref: '#/components/parameters/TeamIdQuery'
+        - $ref: '#/components/parameters/FromTime'
+        - $ref: '#/components/parameters/ToTime'
+      responses:
+        '200':
+          description: Event occurrence list
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+        '304':
+          description: Not modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Events]
+      operationId: createStandaloneEvent
+      summary: Create an event through the legacy-compatible activities flow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityPayload'
+      responses:
+        '201':
+          description: Event created
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+  /events/{occurrenceId}:
+    patch:
+      tags: [Events]
+      operationId: updateSingleOccurrence
+      summary: Update a single occurrence
+      description: Use this for single-occurrence exceptions such as rescheduling or cancellation.
+      parameters:
+        - $ref: '#/components/parameters/OccurrenceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventOccurrencePatchRequest'
+      responses:
+        '200':
+          description: Occurrence updated
+          headers:
+            X-API-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /activities:
+    get:
+      tags: [Events]
+      operationId: listActivitiesCompat
+      summary: Backward-compatible alias for `/events`
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/IncludeDashboard'
+      responses:
+        '200':
+          description: Activity list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+    post:
+      tags: [Events]
+      operationId: createActivityCompat
+      summary: Backward-compatible alias for event creation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityPayload'
+      responses:
+        '201':
+          description: Activity created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+  /activities/{activityId}/rsvps:
+    post:
+      tags: [Events]
+      operationId: recordRsvp
+      summary: Record RSVP status for an occurrence
+      parameters:
+        - $ref: '#/components/parameters/ActivityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RSVPRequest'
+      responses:
+        '200':
+          description: RSVP recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /activities/{activityId}/invitations:
+    get:
+      tags: [Invitations]
+      operationId: listInvitations
+      summary: List invitations for an occurrence
+      parameters:
+        - $ref: '#/components/parameters/ActivityId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Invitation list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Invitations]
+      operationId: createInvitation
+      summary: Queue invitations for an occurrence
+      parameters:
+        - $ref: '#/components/parameters/ActivityId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationPayload'
+      responses:
+        '201':
+          description: Invitation queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /dashboard:
+    get:
+      tags: [Events]
+      operationId: getDashboard
+      summary: Get aggregate event dashboard
+      responses:
+        '200':
+          description: Dashboard response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+  /subscriptions:
+    get:
+      tags: [Billing]
+      operationId: listSubscriptions
+      summary: List subscriptions
+      responses:
+        '200':
+          description: Subscription list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionListResponse'
+  /subscriptions/{teamId}:
+    get:
+      tags: [Billing]
+      operationId: getSubscription
+      summary: Get a subscription by team ID
+      parameters:
+        - $ref: '#/components/parameters/TeamIdPath'
+      responses:
+        '200':
+          description: Subscription response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /checkout-sessions:
+    post:
+      tags: [Billing]
+      operationId: createCheckoutSession
+      summary: Create a Stripe checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutSessionRequest'
+      responses:
+        '201':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /webhooks/stripe:
+    post:
+      tags: [Billing]
+      operationId: receiveStripeWebhook
+      summary: Receive Stripe webhook events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeWebhookPayload'
+      responses:
+        '200':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Subscription'
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                    required: [status]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Health check
+      responses:
+        '200':
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  parameters:
+    SeriesId:
+      name: seriesId
+      in: path
+      required: true
+      schema:
+        type: string
+    OccurrenceId:
+      name: occurrenceId
+      in: path
+      required: true
+      schema:
+        type: string
+    ActivityId:
+      name: activityId
+      in: path
+      required: true
+      schema:
+        type: string
+    TeamIdPath:
+      name: teamId
+      in: path
+      required: true
+      schema:
+        type: string
+    TeamIdQuery:
+      name: teamId
+      in: query
+      required: false
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    IncludeDashboard:
+      name: include
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [dashboard]
+    FromTime:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    ToTime:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+  headers:
+    ApiVersion:
+      schema:
+        type: string
+        example: '1'
+    ETag:
+      schema:
+        type: string
+        example: W/"feed-etag"
+    CacheControl:
+      schema:
+        type: string
+        example: private, max-age=30
+  responses:
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ActivityKind:
+      type: string
+      enum: [match, training, volunteer, social]
+    RSVPStatus:
+      type: string
+      enum: [going, maybe, declined]
+    Recurrence:
+      type: object
+      properties:
+        frequency:
+          type: string
+          enum: [daily, weekly]
+        interval:
+          type: integer
+          minimum: 1
+        count:
+          type: integer
+          minimum: 1
+          maximum: 52
+      required: [frequency, interval, count]
+    ActivityPayload:
+      type: object
+      properties:
+        teamId:
+          type: string
+        title:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        startsAt:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+          example: Europe/Oslo
+        location:
+          type: string
+        maxParticipants:
+          type: integer
+        notes:
+          type: string
+        recurrence:
+          anyOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+      required: [title, kind, startsAt, timeZone, location, maxParticipants, notes]
+    EventSeriesPayload:
+      type: object
+      properties:
+        teamId:
+          type: string
+        title:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        startsAt:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        location:
+          type: string
+        maxParticipants:
+          type: integer
+        notes:
+          type: string
+        recurrence:
+          anyOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        horizonDays:
+          type: integer
+      required: [title, kind, startsAt, timeZone, location, maxParticipants, notes]
+    EventSeriesPatchRequest:
+      type: object
+      properties:
+        teamId:
+          type: string
+        title:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        startsAt:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        location:
+          type: string
+        maxParticipants:
+          type: integer
+        notes:
+          type: string
+        recurrence:
+          $ref: '#/components/schemas/Recurrence'
+        horizonDays:
+          type: integer
+    EventSeriesSplitRequest:
+      type: object
+      properties:
+        occurrenceId:
+          type: string
+        patch:
+          $ref: '#/components/schemas/EventSeriesPatchRequest'
+      required: [occurrenceId, patch]
+    EventOccurrencePatchRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        startsAt:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        location:
+          type: string
+        maxParticipants:
+          type: integer
+        notes:
+          type: string
+        status:
+          type: string
+    ActivityResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        seriesId:
+          type: string
+        teamId:
+          type: string
+        occurrenceIndex:
+          type: integer
+        title:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        startsAt:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        location:
+          type: string
+        maxParticipants:
+          type: integer
+        notes:
+          type: string
+        status:
+          type: string
+        isException:
+          type: boolean
+        goingCount:
+          type: integer
+        maybeCount:
+          type: integer
+        declinedCount:
+          type: integer
+        confirmedRatio:
+          type: number
+        recurrence:
+          anyOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+      required: [id, title, kind, startsAt, timeZone, location, maxParticipants, notes, goingCount, maybeCount, declinedCount, confirmedRatio]
+    ActivityListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityResponse'
+        nextCursor:
+          type: string
+        dashboard:
+          $ref: '#/components/schemas/DashboardResponse'
+      required: [items]
+    DashboardResponse:
+      type: object
+      properties:
+        upcomingActivities:
+          type: integer
+        totalGoing:
+          type: integer
+        byKind:
+          type: object
+          additionalProperties:
+            type: integer
+        nextActivity:
+          anyOf:
+            - $ref: '#/components/schemas/ActivityResponse'
+            - type: 'null'
+      required: [upcomingActivities, totalGoing, byKind]
+    EventSeriesResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        title:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        startsAt:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        location:
+          type: string
+        maxParticipants:
+          type: integer
+        notes:
+          type: string
+        status:
+          type: string
+        horizonDays:
+          type: integer
+        recurrence:
+          anyOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        occurrenceCount:
+          type: integer
+        upcomingCount:
+          type: integer
+        firstOccurrenceId:
+          type: string
+        lastOccurrenceId:
+          type: string
+        occurrences:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityResponse'
+      required: [id, teamId, title, kind, startsAt, timeZone, location, maxParticipants, notes, status, horizonDays, occurrenceCount, upcomingCount]
+    EventSeriesListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSeriesResponse'
+      required: [items]
+    RSVPRequest:
+      type: object
+      properties:
+        memberName:
+          type: string
+        status:
+          $ref: '#/components/schemas/RSVPStatus'
+      required: [memberName, status]
+    InvitationPayload:
+      type: object
+      properties:
+        channel:
+          type: string
+          enum: [push, email, sms]
+        recipients:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+      required: [channel, recipients, message]
+    InvitationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        activityId:
+          type: string
+        channel:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+        status:
+          type: string
+        idempotencyKey:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, activityId, channel, recipients, message, status, createdAt]
+    InvitationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvitationResponse'
+        nextCursor:
+          type: string
+      required: [items]
+    SubscriptionPlan:
+      type: string
+      enum: [starter, club, pro]
+    SubscriptionStatus:
+      type: string
+      enum: [trial, active, past_due]
+    Subscription:
+      type: object
+      properties:
+        teamId:
+          type: string
+        teamName:
+          type: string
+        plan:
+          $ref: '#/components/schemas/SubscriptionPlan'
+        status:
+          $ref: '#/components/schemas/SubscriptionStatus'
+        priceMonthlyNOK:
+          type: integer
+        renewalDate:
+          type: string
+          format: date-time
+        lastPaymentStatus:
+          type: string
+        lastPaymentAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        stripeCustomerId:
+          type: string
+        stripeSessionId:
+          type: string
+        stripeSessionUrl:
+          type: string
+      required: [teamId, teamName, plan, status, priceMonthlyNOK, renewalDate, lastPaymentStatus]
+    SubscriptionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subscription'
+      required: [items]
+    CheckoutSessionRequest:
+      type: object
+      properties:
+        teamId:
+          type: string
+        teamName:
+          type: string
+        plan:
+          $ref: '#/components/schemas/SubscriptionPlan'
+        successUrl:
+          type: string
+          format: uri
+        cancelUrl:
+          type: string
+          format: uri
+      required: [teamId, teamName, plan, successUrl, cancelUrl]
+    CheckoutSessionResponse:
+      type: object
+      properties:
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+        sessionId:
+          type: string
+        checkoutUrl:
+          type: string
+          format: uri
+        message:
+          type: string
+      required: [subscription, sessionId, checkoutUrl, message]
+    StripeCheckoutSession:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        customer:
+          type: string
+        subscription:
+          type: string
+        client_reference_id:
+          type: string
+      required: [id]
+    StripeWebhookData:
+      type: object
+      properties:
+        object:
+          $ref: '#/components/schemas/StripeCheckoutSession'
+      required: [object]
+    StripeWebhookPayload:
+      type: object
+      properties:
+        type:
+          type: string
+        data:
+          $ref: '#/components/schemas/StripeWebhookData'
+      required: [type, data]
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]

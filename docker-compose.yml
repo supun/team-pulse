@@ -63,6 +63,18 @@ services:
     networks:
       - teampulse-net
 
+  api-docs:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.api-docs
+    container_name: teampulse-api-docs
+    depends_on:
+      - api-gateway
+    ports:
+      - "3001:80"
+    networks:
+      - teampulse-net
+
 networks:
   teampulse-net:
     driver: bridge

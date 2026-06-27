@@ -42,7 +42,8 @@ body::before {
 
 .hero,
 .stats,
-.grid {
+.grid,
+.architecture-grid {
   position: relative;
   z-index: 1;
 }
@@ -80,7 +81,8 @@ h1 {
 .hero-card,
 .panel,
 .stats article,
-.activity-card {
+.activity-card,
+.insight-card {
   background: var(--paper);
   backdrop-filter: blur(10px);
   border: 1px solid var(--line);
@@ -101,7 +103,7 @@ h1 {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -129,6 +131,13 @@ h1 {
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 24px;
+}
+
+.architecture-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stack {
@@ -200,6 +209,21 @@ button:hover {
   padding: 18px;
 }
 
+.insight-card {
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.insight-card h3 {
+  margin: 0 0 10px;
+}
+
+.insight-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .activity-meta,
 .attendance,
 .actions {
@@ -251,7 +275,8 @@ button:hover {
 @media (max-width: 900px) {
   .hero,
   .grid,
-  .stats {
+  .stats,
+  .architecture-grid {
     grid-template-columns: 1fr;
   }
 }

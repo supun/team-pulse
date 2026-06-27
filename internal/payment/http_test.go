@@ -58,3 +58,18 @@ func TestCheckoutSessionAndWebhookFlow(t *testing.T) {
 		t.Fatalf("expected stripe customer id, got %s", sub.StripeCustomerID)
 	}
 }
+
+func TestVersionedSubscriptionRoutes(t *testing.T) {
+	handler := NewHandler(NewService(&MockStripeClient{}, ""))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/subscriptions", nil)
+	res := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.Code)
+	}
+	if res.Header().Get("X-API-Version") != "1" {
+		t.Fatalf("expected version header, got %q", res.Header().Get("X-API-Version"))
+	}
+}

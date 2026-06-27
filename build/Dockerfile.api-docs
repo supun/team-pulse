@@ -1,0 +1,6 @@
+FROM nginx:1.27-alpine
+
+COPY docs/scalar/index.html /usr/share/nginx/html/index.html
+COPY web/openapi.yaml /usr/share/nginx/html/openapi.yaml
+
+EXPOSE 80

@@ -24,6 +24,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("/subscriptions/", h.handleSubscriptionByTeam)
 	mux.HandleFunc("/checkout-sessions", h.handleCheckoutSessions)
 	mux.HandleFunc("/webhooks/stripe", h.handleStripeWebhook)
+	mux.HandleFunc("/v1/subscriptions", h.handleSubscriptions)
+	mux.HandleFunc("/v1/subscriptions/", h.handleSubscriptionByTeam)
+	mux.HandleFunc("/v1/checkout-sessions", h.handleCheckoutSessions)
+	mux.HandleFunc("/v1/webhooks/stripe", h.handleStripeWebhook)
 	return httpjson.WithCORS(mux)
 }
 
@@ -32,6 +36,7 @@ func (h *Handler) handleHealth(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *Handler) handleSubscriptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-API-Version", "1")
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -40,12 +45,16 @@ func (h *Handler) handleSubscriptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleSubscriptionByTeam(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-API-Version", "1")
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	teamID := strings.TrimPrefix(r.URL.Path, "/subscriptions/")
+	if strings.HasPrefix(r.URL.Path, "/v1/subscriptions/") {
+		teamID = strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/")
+	}
 	teamID = strings.TrimSpace(strings.Trim(teamID, "/"))
 	if teamID == "" {
 		http.NotFound(w, r)
@@ -66,6 +75,7 @@ func (h *Handler) handleSubscriptionByTeam(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) handleCheckoutSessions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-API-Version", "1")
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -87,6 +97,7 @@ func (h *Handler) handleCheckoutSessions(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-API-Version", "1")
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
